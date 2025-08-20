@@ -1,0 +1,54 @@
+main:
+  ramdir : '/dev/shm/' ##It is very useful to have a ramdisk installed on the computer, because you need to open the large ft2 file a lot
+  wkdir : '/cfs/data/pg/SolarICS/Analysis_15Years_TestExtreme_Phibins_60_1sec_SourceMaskBig/'
+  moonxmltemplate : 'in_moon_template.txt'
+  mpicores : 128 ## number of mpi cores that the code can run on
+  mpicores_memory : 60 ##number of mpi cores to run when there is a significant memory usage per core. 
+
+data:
+  ft1_directory : /cfs/data/pg/SolarICS/DATA/
+  ft2_directory : /cfs/data/pg/SolarICS/DATA/
+  ft1_name : nmkcft1.239558401.712857605.fits
+  ft1_numpy_name: reduced_data_239558401_712857605.npy
+  ft1_template_name : nmkcft1.239558401.712857605.nophotons.fits
+  ft2_name : ft2.239558401.712857605.fits
+  starttime : 239558401 ##This starts at 16:00 UTC on August 4, 2008 - which gives us equal hours throughout, update: 403131601
+  endtime : 712857605 ##100 timesteps
+  exposurestep : 3600
+  eventclass : 512
+  eventtype : 3
+  zenithangle : 90
+  phibins : 20
+  dcostheta : 0.025
+  binsz : 0.5
+  psf_thetamax : 45.0 ##the maximum theta angle that we extend the gtpsf function to
+  psf_thetabins : 4500 ##the number of gtpsf bins that we use
+  energymin : 31.6227766017
+  energymax : 1000000.0
+  energybins : 36
+  filter : 'null'
+  instrumentresponsefunction : 'P8R3_ULTRACLEAN_V3'
+  ics_infilelist : 'ics_models/list_IC_morphology_files_test.txt'
+  zodiacal_infilelist : 'zodiacal_models/list_zodiacal_models.txt'
+
+cuts:
+  suncut : 60.0
+  mooncut : 20.0
+  moonmodelsize : 15.0 ##The moon model was somehow hard coded in to be slightly smaller than the cut. These don't actually have to be the same, since there is no emission out there
+  latitudecut : 30.0
+  flarecut_name : fermilat_3600_moon60deg ##This sets up the model for time slices that we will exclude because they overlap some set of flares or other temporal events we want to avoid
+  flarecut_fullbackground_name : fermilat_3600_moon60deg ##If you want to get a background model from a different time selection, change this here, otherwise, make it the same as flarecut_name
+  flarecut_fullbackground_starttime : 239558401 ##If you want to get a background model from a different time selection, change this here, otherwise, make it the same as flarecut_name
+  flarecut_fullbackground_endtime : 712857605 ##If you want to get a background model from a different time selection, change this here, otherwise, make it the same as flarecut_name
+  flarecut_filename : flarecuts.txt ##This is a text file that just includes the start and end MET times of the cutsitself
+  flarecut_buffer : 3600 ##This is the buffer (in seconds) around which we cut additional data surrounding the flare. Note, if any section of the exposurestep overlaps this, the full exposurestep is cut
+  source_angular_cut : 3.0
+  source_cut_filename : 'source_cut_list.txt'
+  source_mask_name : 'source_mask_fluxabove2e9_variabilityabove100_latitude30.npz'
+
+healpix:
+  nside : 512
+
+constants:
+  angular_size_of_sun_degrees : 0.266450226
+  rad2deg : 57.2957795147 ## 1 radian in degrees
