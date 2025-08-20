@@ -1,0 +1,50 @@
+main:
+  ramdir : '/dev/shm/' ##It is very useful to have a ramdisk installed on the computer, because you need to open the large ft2 file a lot
+  wkdir : './'
+  mpicores : 32 ## number of mpi cores that the code can run on
+
+data:
+  ft1_directory : ./DATA/
+  ft2_directory : ./DATA/
+  ft1_name : lat_photon_weekly_w046_p305_v001.fits
+  ft1_numpy_name: reduced_data_260323735_260930821.npy
+  ft1_template_name : lat_photon_weekly_w044_p305_v001.fits
+  ft2_name : lat_spacecraft_weekly_w046_p310_v001.fits
+  starttime : 261538111 ##This starts at 16:00 UTC on August 4, 2008 - which gives us equal hours throughout, update: 403131601
+  endtime : 262136606  ##100 timesteps
+  exposurestep : 3600
+  eventclass : 512
+  eventtype : 3
+  zenithangle : 90
+  phibins : 1
+  dcostheta : 0.025
+  binsz : 0.5
+  psf_thetamax : 45.0 ##the maximum theta angle that we extend the gtpsf function to
+  psf_thetabins : 4500 ##the number of gtpsf bins that we use
+  energymin : 1000.0
+  energymax : 100000.0
+  energybins : 4
+  filter : 'null'
+  instrumentresponsefunction : 'P8R3_ULTRACLEAN_V3'
+  ics_infilelist : 'ics_models/list_IC_morphology_models.txt'
+
+cuts:
+  suncut : 60.0
+  mooncut : 20.0
+  latitudecut : 10.0
+  flarecut_name : fermilat_3600_moon60deg ##This sets up the model for time slices that we will exclude because they overlap some set of flares or other temporal events we want to avoid
+  flarecut_fullbackground_name : fermilat_3600_moon60deg ##If you want to get a background model from a different time selection, change this here, otherwise, make it the same as flarecut_name
+  flarecut_fullbackground_starttime : 261538111 ##If you want to get a background model from a different time selection, change this here, otherwise, make it the same as flarecut_name
+  flarecut_fullbackground_endtime : 262136606 ##If you want to get a background model from a different time selection, change this here, otherwise, make it the same as flarecut_name
+  flarecut_filename : flarecuts.txt ##This is a text file that just includes the start and end MET times of the cutsitself
+  flarecut_buffer : 3600 ##This is the buffer (in seconds) around which we cut additional data surrounding the flare. Note, if any section of the exposurestep overlaps this, the full exposurestep is cut
+  source_angular_cut : 3.0
+  source_cut_filename : 'DATA/source_cut_list.txt'
+  source_mask_name : 'DATA/source_mask_fluxabove2e9_variabilityabove100_latitude30.npz'
+
+healpix:
+  nside : 64
+
+constants:
+  angular_size_of_sun_degrees : 0.266450226
+  rad2deg : 57.2957795147 ## 1 radian in degrees
