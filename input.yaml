@@ -7,7 +7,7 @@ data:
   ft1_directory : ./DATA/
   ft2_directory : ./DATA/
   ft1_name : lat_photon_weekly_w046_p305_v001.fits
-  ft1_numpy_name: reduced_data_260323735_260930821.npy
+  ft1_numpy_name: reduced_data_261538111_262136606.npy
   ft1_template_name : lat_photon_weekly_w044_p305_v001.fits
   ft2_name : lat_spacecraft_weekly_w046_p310_v001.fits
   starttime : 261538111 ##This starts at 16:00 UTC on August 4, 2008 - which gives us equal hours throughout, update: 403131601
