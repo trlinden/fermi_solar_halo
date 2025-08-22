@@ -71,7 +71,7 @@ def worker(i, timesteps_start_removed, timesteps_end_removed, angular_size_of_su
 			psf_arrays = np.zeros([fs.yaml_ebins, 4500]) ##4500 is the number of bin files in the gtpsf data, should be added as an option at some point
 			weighted_psf_array = np.zeros([fs.yaml_ebins, 4500]) ##4500 number of bin files in the gtpsf data, should be added as an option at some point
 			total_exposure = np.zeros(fs.yaml_ebins)
-			angular_array = 0
+			angular_array = np.zeros(fs.yaml_psf_thetabins)
 			for counter in range(startline, endline):
 				runtimestep=1
 				try:
@@ -102,7 +102,7 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 	psf_arrays = 0.0 ##This is going to be a numpy array that stores all of the information and gets printed out
 	total_exposure= 0.0 ##This is the moon model data, which we also want to save, but separately
 	numlines_received = 0
-	angular_array = 0
+	angular_array = np.zeros(fs.yaml_psf_thetabins)
 	for i in range(1, p):
 		startline = linenumber
 		endline = linenumber + num_timesteps_per_worker
@@ -140,7 +140,7 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 					weighted_psf_array = np.zeros([fs.yaml_ebins, 4500])					
 					
 					##Angular array actually holds an array of arrays, for some dumb reason, you have to fix this
-					fix_angular_array = np.zeros(4500)
+					fix_angular_array = np.zeros(fs.yaml_psf_thetabins)
 					for fixcounter in range(0, len(angular_array)):
 						fix_angular_array[fixcounter] = angular_array[fixcounter][0]
 					angular_array = fix_angular_array * math.pi/180.0
