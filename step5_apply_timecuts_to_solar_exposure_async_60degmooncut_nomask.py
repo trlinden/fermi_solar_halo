@@ -100,13 +100,11 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, file_to_add, f
 				numlines_received += c[1]
 				if(cntrcv == n):
 					np.savez_compressed(file_to_add + '.' + str(fs.yaml_starttime) + '.' + str(fs.yaml_endtime) + '.' + flarecut_name + '.npz', total_result)
-					exit()
-					break
 					##Clean up by ending the workers
-					#for i in range(1, p):
-					#	COMM.send(["kill"], dest=i, tag=11)
-					#exit()
-					#return 0
+					for i in range(1, p):
+						COMM.send(["kill"], dest=i, tag=11)
+					return 0
+					exit()
 			else:
 				print("Received null from ", node)
 
