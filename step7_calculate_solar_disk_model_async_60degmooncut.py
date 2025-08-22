@@ -49,7 +49,7 @@ def worker(i, timesteps_start_removed, timesteps_end_removed, angular_size_of_su
 			psf_arrays = np.zeros([fs.yaml_ebins, fs.yaml_psf_thetabins]) ##4500 is the number of bin files in the gtpsf data, should be added as an option at some point
 			weighted_psf_array = np.zeros([fs.yaml_ebins, fs.yaml_psf_thetabins]) ##4500 number of bin files in the gtpsf data, should be added as an option at some point
 			total_exposure = np.zeros(fs.yaml_ebins)
-			angular_array = np.zeros(fs.yaml_psf_thetabins)
+			angular_array = 0
 			for counter in range(startline, endline):
 				runtimestep=1
 				try:
@@ -80,7 +80,7 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 	psf_arrays = 0.0 ##This is going to be a numpy array that stores all of the information and gets printed out
 	total_exposure= 0.0 ##This is the moon model data, which we also want to save, but separately
 	numlines_received = 0
-	angular_array = np.zeros(fs.yaml_psf_thetabins)
+	angular_array = 0
 	for i in range(1, p):
 		startline = linenumber
 		endline = linenumber + num_timesteps_per_worker
@@ -113,11 +113,11 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 				numlines_received += c[3]
 				if(cntrcv == n):
 					##Here there is suddenly quite a bit to do, that can only be done on the master node				
-					weighted_psf_array = np.zeros([fs.yaml_ebins, fs.yaml_psf_thetabins])					
+					weighted_psf_array = np.zeros([fs.yaml_ebins, 4500])					
 					##Angular array actually holds an array of arrays, for some dumb reason, you have to fix this
-					fix_angular_array = np.zeros(fs.yaml_psf_thetabins)
+					fix_angular_array = np.zeros(4500)
 					for fixcounter in range(0, len(angular_array)):
-						fix_angular_array[fixcounter] = angular_array[fixcounter]
+						fix_angular_array[fixcounter] = angular_array[fixcounter][0]
 					angular_array = fix_angular_array * math.pi/180.0
 					
 					for en in range(0, fs.yaml_ebins):
@@ -127,7 +127,9 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 					##Get the weighted psf array by dividing
 					for en in range(0, fs.yaml_ebins):
 						weighted_psf_array[en] = psf_arrays[en] / total_exposure[en] ##should be a 32x4500 result
-
+					np.save('out7_weighted_psf_array.npy', weighted_psf_array)
+					np.save('out7_weighted_psf_array_angular_array.npy', angular_array)
+					
 					##Now make the model of the disk without smearing --  Monte Carlo to get the pixel edges correct in healpix format
 					num_sun_points=10000
 					x=0
@@ -149,6 +151,19 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 						psf_spherical_harmonic = hp.sphtfunc.beam2bl(weighted_psf_array[en], angular_array, 100000) ##Compute b(l) out to 10000 steps (should be 360.0/100000 degrees, which is small?)
 						smoothed_map[en] = hp.sphtfunc.smoothing(sun_map_no_smearing, beam_window=psf_spherical_harmonic)
 
+
+
+					##Now we need to take the mask correction, we take the ratio to get to the correct exposure
+
+					exposure_model_zipped = np.load('solar_exposure/solar_exposure.' + str(fs.yaml_starttime) + '.' + str(fs.yaml_endtime) + '.' + str(fs.yaml_flarecut_name) + '.npz')
+					exposure_model = exposure_model_zipped['arr_0'] ##this unzips the exposure model
+					
+					###This is the model without cuts. We first smear by this, and then use the psf, and then take the ratio
+					exposure_model_nomask_zipped = np.load('solar_exposure_nomask/solar_exposure.' + str(fs.yaml_starttime) + '.' + str(fs.yaml_endtime) + '.' + str(fs.yaml_flarecut_name) + '.npz')
+					exposure_model_nomask = exposure_model_nomask_zipped['arr_0'] ##this unzips the exposure model
+
+					smoothed_map = np.multiply(smoothed_map, np.divide(exposure_model, (exposure_model_nomask+1e-30))) ##get the ratio of teh exposure maps to generate the exposure with cuts
+
 					#The psf is only defined to 45 degrees, there can be numerical issues right at the boundaries
 					##For safety, set everything to 0 outside of 35 degrees, it should be 0 there anyway.
 					for ipix in range(0, fs.yaml_healpix_numpixels):
@@ -161,15 +176,16 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 					for en in range(0, fs.yaml_ebins):
 						normalization_constant = np.sum(smoothed_map[en])
 						smoothed_map[en] = np.divide(smoothed_map[en], normalization_constant)
-					
+				
+
+
 					##Save all ebins in one file
-					np.savez_compressed('background_model/solar_disk.' + str(fs.yaml_starttime) + '.' + str(fs.yaml_endtime) + '.' + fs.yaml_flarecut_name + '.npz', smoothed_map)
+					np.savez_compressed('background_model/solar_disk.' + str(timesteps_start_removed[0]) + '.' + str(timesteps_end_removed[-1]) + '.' + fs.yaml_flarecut_name + '.npz', smoothed_map)
 
 					##Clean up by ending the workers
 					for i in range(1, p):
 						COMM.send(['kill'], dest=i, tag=11)
 					return 0
-					exit()
 			else:
 				print("Received null from ", node)
 
@@ -189,7 +205,7 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 
 def main(timesteps_start_removed, timesteps_end_removed, angular_size_of_sun_degrees):
 	if(RANK == 0):
-		num_timesteps_per_worker = 10
+		num_timesteps_per_worker = 200
 		##Add one to make sure the extra x jobs at the end get completed
 		nbr = int(len(timesteps_start_removed)/num_timesteps_per_worker + 1) ##When the worker returns, it has to send back a ton of data, so we want it to do like 1000 steps at a time
 		manager(SIZE, nbr, timesteps_start_removed, timesteps_end_removed, angular_size_of_sun_degrees, num_timesteps_per_worker)

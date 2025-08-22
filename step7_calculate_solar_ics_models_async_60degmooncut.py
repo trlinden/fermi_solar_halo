@@ -71,7 +71,7 @@ def worker(i, timesteps_start_removed, timesteps_end_removed, angular_size_of_su
 			psf_arrays = np.zeros([fs.yaml_ebins, 4500]) ##4500 is the number of bin files in the gtpsf data, should be added as an option at some point
 			weighted_psf_array = np.zeros([fs.yaml_ebins, 4500]) ##4500 number of bin files in the gtpsf data, should be added as an option at some point
 			total_exposure = np.zeros(fs.yaml_ebins)
-			angular_array = np.zeros(fs.yaml_psf_thetabins)
+			angular_array = 0
 			for counter in range(startline, endline):
 				runtimestep=1
 				try:
@@ -102,7 +102,7 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 	psf_arrays = 0.0 ##This is going to be a numpy array that stores all of the information and gets printed out
 	total_exposure= 0.0 ##This is the moon model data, which we also want to save, but separately
 	numlines_received = 0
-	angular_array = np.zeros(fs.yaml_psf_thetabins)
+	angular_array = 0
 	for i in range(1, p):
 		startline = linenumber
 		endline = linenumber + num_timesteps_per_worker
@@ -140,9 +140,9 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 					weighted_psf_array = np.zeros([fs.yaml_ebins, 4500])					
 					
 					##Angular array actually holds an array of arrays, for some dumb reason, you have to fix this
-					fix_angular_array = np.zeros(fs.yaml_psf_thetabins)
+					fix_angular_array = np.zeros(4500)
 					for fixcounter in range(0, len(angular_array)):
-						fix_angular_array[fixcounter] = angular_array[fixcounter]
+						fix_angular_array[fixcounter] = angular_array[fixcounter][0]
 					angular_array = fix_angular_array * math.pi/180.0
 					
 					for en in range(0, fs.yaml_ebins):
@@ -152,7 +152,7 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 					##Get the weighted psf array by dividing
 					for en in range(0, fs.yaml_ebins):
 						weighted_psf_array[en] = psf_arrays[en] / total_exposure[en] ##should be a 36x4500 result
-					
+				
 					##Now make a model of the ICS without smearing.
 					##Note: From discussions with the Fermi collaboration, the correct way to deal with this is to weight it
 					##      by the exposure, and then to smear with the PSF. So we need to grab the ICS model and the exposure
@@ -178,7 +178,7 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 						infile_ics = open(infile, 'r')
 						
 						angle_vals = [0.0] ##start with a flux of 0 at the origin, which is very close to true
-						flux_vals = [np.zeros(fs.yaml_ebins)] ##a 36 element array, for each energy value, at a radius of 0 
+						flux_vals = [np.zeros(36)] ##a 36 element array, for each energy value, at a radius of 0 
 
 						for ics_line in infile_ics.readlines(): ##each line is a specific radius and has 33 components, a defined radius and the flux at 36 energy values
 							if(ics_line[0] != '#'): ##Not a commented out line
@@ -222,9 +222,14 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 					##Now we have all of our ICS maps, but we need to open the Fermi-LAT exposure model and bias them -- the normalization of this doesn't matter because we renormalize to 1 count at the end anyway
 					exposure_model_zipped = np.load('solar_exposure/solar_exposure.' + str(fs.yaml_starttime) + '.' + str(fs.yaml_endtime) + '.' + str(fs.yaml_flarecut_name) + '.npz')
 					exposure_model = exposure_model_zipped['arr_0'] ##this unzips the exposure model
+					
+					###This is the model without cuts. We first smear by this, and then use the psf, and then take the ratio
+					exposure_model_nomask_zipped = np.load('solar_exposure_nomask/solar_exposure.' + str(fs.yaml_starttime) + '.' + str(fs.yaml_endtime) + '.' + str(fs.yaml_flarecut_name) + '.npz')
+					exposure_model_nomask = exposure_model_nomask_zipped['arr_0'] ##this unzips the exposure model
+
 					for ics_model_num in range(0, len(ics_arrays)): ##exposure model is a 36xhealpix_nbins matrix, so we just need to multiply these by each other
 					##We don't need the unnormalized version anymore - so we can just save the output back into the original array
-						ics_healpix_models[ics_model_num] = np.asarray(ics_healpix_models[ics_model_num]) * exposure_model ##should both be 36xhealpix_nbins
+						ics_healpix_models[ics_model_num] = np.asarray(ics_healpix_models[ics_model_num]) * exposure_model_nomask ##should both be 36xhealpix_nbins
 					
 					##Now we are done! We just need to smear this with our smoothing function, and save all the answers						
 
@@ -240,6 +245,11 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 							smoothed_ics_maps[ics_map_num][en] = hp.sphtfunc.smoothing(ics_healpix_models[ics_map_num][en], beam_window=psf_spherical_harmonic)
 					
 
+					##Now we need to take the ratio to get to the correct exposure
+					for ics_map_num in range(0, len(ics_arrays)):
+						smoothed_ics_maps[ics_map_num] = np.multiply(smoothed_ics_maps[ics_map_num], np.divide(exposure_model, (exposure_model_nomask+1e-30))) ##get the ratio of teh exposure maps to generate the exposure with cuts
+
+					##Finally, we need to go back and still normalize this to one photon
 					for en in range(0, fs.yaml_ebins):
 						for ics_map_num in range(0, len(ics_arrays)):
 							ics_normalization_constant = np.sum(smoothed_ics_maps[ics_map_num][en])
@@ -253,7 +263,6 @@ def manager(p, n, timesteps_start_removed, timesteps_end_removed, angular_size_o
 					for i in range(1, p):
 						COMM.send(['kill'], dest=i, tag=11)
 					return 0
-					exit()
 			else:
 				print("Received null from ", node)
 

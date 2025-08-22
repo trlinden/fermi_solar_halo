@@ -2,7 +2,7 @@
 
 # This slurm job runs HPL benchmark.
 
-#SBATCH -p cops          # Partition
+#SBATCH -p fermi          # Partition
 #SBATCH -N 1           # Number of nodes
 #SBATCH -J solar_background_model           # Job name
 #SBATCH -t 140:00:00       # Wall time (H:M:S)
@@ -35,6 +35,9 @@ mpiexec -n 16 python step2_make_helioprojective_models_sourcemask.py
 ##The first file here creates the sourcecut map, by going through every coordinate in r.a. and dec, and determining whether it is cut (by a nearby source, the galactic plane, or the moon) or partially cut (in which case it calcualtes the fractional exposure)
 mpiexec -n 16 python step3_make_exposure_map_cuts_based_on_sourcecuts_async.py input.yaml
 
+##This calculates the exposure using the without having the latitude source cut mask applied - it is important to have this, because when we psf correct the ics and disk maps, we need to know about the photons that leaked out of these masks
+mpiexec -n 16 python step3_convert_exposures_to_helioprojective_coordinates_and_make_background_model_nomask.py input.yaml
+
 ##This code applies those cuts to every exposure file generated in step 1, creating exposures_sourcecuts, which will be used for both the on and off part of the analysis
 python step3_apply_source_cuts_to_all_exposures.py input.yaml
 
@@ -55,6 +58,7 @@ mpiexec -n 16 python step5_apply_timecuts_to_data_nosun_nomoon_async_60degmooncu
 mpiexec -n 16 python step5_apply_timecuts_to_exposure_nosun_nomoon_async_60degmooncut.py input.yaml extracuts_60degmoon_starttimes.npy extracuts_60degmoon_endtimes.npy 
 mpiexec -n 16 python step5_apply_timecuts_to_solar_data_async_60degmooncut.py input.yaml extracuts_60degmoon_starttimes.npy extracuts_60degmoon_endtimes.npy 
 mpiexec -n 16 python step5_apply_timecuts_to_solar_exposure_async_60degmooncut.py input.yaml extracuts_60degmoon_starttimes.npy extracuts_60degmoon_endtimes.npy 
+mpiexec -n 16 python step5_apply_timecuts_to_solar_exposure_async_60degmooncut_nomask.py input.yaml extracuts_60degmoon_starttimes.npy extracuts_60degmoon_endtimes.npy 
 
 wait
 
